@@ -1,4 +1,9 @@
 psycopg==3.3.6
 psycopg-binary==3.3.6
+PyMuPDF
+langchain-text-splitters
+sentence-transformers
+streamlit
+requests
 python-dotenv==1.2.4
 typing_extensions==4.16.0

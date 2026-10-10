@@ -32,3 +32,7 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local agent and Claude skills
+.agents/
+.claude/
