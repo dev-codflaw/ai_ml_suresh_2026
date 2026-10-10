@@ -105,14 +105,8 @@ Set another model in `.env` if needed.
 streamlit run app.py
 ```
 
-## Request flow
+## Detailed workflow documentation
 
-1. Upload or select a PDF.
-2. Extract and display the PDF text.
-3. Split the text into chunks and display them.
-4. Create chunk embeddings with `all-MiniLM-L6-v2`.
-5. Save chunks and embeddings in PostgreSQL/pgvector.
-6. Convert the question with the same embedding function.
-7. Search pgvector and display the top five chunks.
-8. Send the question and retrieved chunks to Ollama.
-9. Display the final answer.
+The exact code-level RAG trace, SQL, prompt template, implemented limitations,
+and separate recommendations are documented in
+[`RAG_WORKFLOW.md`](RAG_WORKFLOW.md).
