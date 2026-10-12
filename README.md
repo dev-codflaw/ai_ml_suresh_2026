@@ -46,7 +46,46 @@ datasets/         Example PDF files
 
 The exact package versions are listed in [`requirements.txt`](requirements.txt).
 
-## Setup
+## Setup options
+
+## One-click Docker setup
+
+Docker is the recommended way to run the complete local stack. It starts the
+Streamlit app, PostgreSQL with pgvector, and Ollama together. Docker Desktop
+works on Windows, macOS, and Linux.
+
+1. Install and start [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+2. Run the launcher from this folder:
+
+   - Windows: double-click `start.bat`.
+   - macOS/Linux: run `./start.sh`.
+   - PowerShell: run `./start.ps1`.
+
+The launcher builds the app image, starts PostgreSQL and Ollama, downloads the
+configured Ollama model (`llama3.2:3b` by default), and makes the app available
+at <http://localhost:8501>. The first run can take several minutes because the
+Docker images, embedding model, and Ollama model must be downloaded.
+
+Stop the stack with `stop.bat`, `stop.ps1`, or `./stop.sh`. Database records and
+downloaded Ollama models are kept in Docker volumes, so stopping the stack does
+not delete them.
+
+The Docker defaults can be changed in `.env`:
+
+```dotenv
+DB_NAME=ai_ml_vectordb
+DB_USER=postgres
+DB_PASSWORD=testing@123
+OLLAMA_MODEL=llama3.2:3b
+APP_HOST_PORT=8501
+POSTGRES_HOST_PORT=5432
+OLLAMA_HOST_PORT=11434
+```
+
+If one of these host ports is already in use, change the corresponding value
+and open the app using the new `APP_HOST_PORT`.
+
+## Manual Python setup
 
 Run these commands from this folder:
 
