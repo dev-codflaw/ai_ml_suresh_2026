@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import fitz
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from embeddings import get_embeddings
 from vector_store import create_table, save_chunks
@@ -21,12 +20,33 @@ def extract_text(file_path: str | Path) -> str:
 
 
 def create_chunks(text: str) -> list[str]:
-    """Split text into small, overlapping chunks."""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100,
-    )
-    return splitter.split_text(text)
+    """Split text into small, overlapping chunks without external packages."""
+    chunk_size = 800
+    chunk_overlap = 100
+    chunks: list[str] = []
+    start = 0
+
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        if end < len(text):
+            natural_break = max(
+                text.rfind("\n\n", start, end),
+                text.rfind("\n", start, end),
+                text.rfind(" ", start, end),
+            )
+            if natural_break > start + chunk_size // 2:
+                end = natural_break
+
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+
+        next_start = max(end - chunk_overlap, start + 1)
+        if next_start >= len(text):
+            break
+        start = next_start
+
+    return chunks
 
 
 def ingest_document(file_path: str | Path) -> dict:
