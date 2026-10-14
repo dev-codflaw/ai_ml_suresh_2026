@@ -13,13 +13,13 @@ if ([string]::IsNullOrWhiteSpace($provider) -and (Test-Path -LiteralPath ".env")
         $provider = $Matches[1]
     }
 }
-if ([string]::IsNullOrWhiteSpace($provider)) { $provider = "ollama" }
+if ([string]::IsNullOrWhiteSpace($provider)) { $provider = "gemini" }
 $provider = $provider.Trim().ToLowerInvariant()
 
 docker compose --profile ollama down --remove-orphans
 
 if ($provider -eq "ollama") {
-    docker compose --profile ollama up -d --build --wait postgres ollama
+    docker compose --profile ollama up -d --build --wait ollama
     docker compose --profile ollama run --rm ollama-model
     docker compose --profile ollama up -d --build --wait app
     Write-Host "Simple RAG is using the local Ollama provider."

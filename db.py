@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import psycopg
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -11,7 +10,7 @@ DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-VECTOR_STORE = os.getenv("VECTOR_STORE", "postgres").strip().lower()
+VECTOR_STORE = os.getenv("VECTOR_STORE", "mongodb").strip().lower()
 MONGODB_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI", "")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "ai_ml_vectordb")
 MONGODB_SERVER_SELECTION_TIMEOUT_MS = int(
@@ -62,6 +61,15 @@ def check_database_connection() -> tuple[bool, str]:
 
 
 def get_connection():
+    """Create a PostgreSQL connection for the optional legacy backend."""
+    try:
+        import psycopg
+    except ImportError as error:
+        raise RuntimeError(
+            "PostgreSQL support is optional. Install psycopg[binary] to use "
+            "VECTOR_STORE=postgres."
+        ) from error
+
     return psycopg.connect(
         host=DB_HOST,
         port=DB_PORT,

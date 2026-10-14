@@ -12,7 +12,7 @@ from db import get_connection
 
 load_dotenv(Path(__file__).with_name(".env"))
 
-VECTOR_STORE = os.getenv("VECTOR_STORE", "postgres").strip().lower()
+VECTOR_STORE = os.getenv("VECTOR_STORE", "mongodb").strip().lower()
 MONGODB_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI", "")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "ai_ml_vectordb")
 MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "vector_embeddings")

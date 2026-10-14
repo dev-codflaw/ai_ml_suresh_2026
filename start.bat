@@ -10,7 +10,7 @@ if errorlevel 1 (
 )
 
 set "LLM_PROVIDER_VALUE=%LLM_PROVIDER%"
-if not defined LLM_PROVIDER_VALUE set "LLM_PROVIDER_VALUE=ollama"
+if not defined LLM_PROVIDER_VALUE set "LLM_PROVIDER_VALUE=gemini"
 if exist .env (
   for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
     if /I "%%A"=="LLM_PROVIDER" set "LLM_PROVIDER_VALUE=%%B"
@@ -20,7 +20,7 @@ if exist .env (
 docker compose --profile ollama down --remove-orphans
 
 if /I "%LLM_PROVIDER_VALUE%"=="ollama" (
-  docker compose --profile ollama up -d --build --wait postgres ollama
+  docker compose --profile ollama up -d --build --wait ollama
   if errorlevel 1 goto failure
   docker compose --profile ollama run --rm ollama-model
   if errorlevel 1 goto failure

@@ -19,14 +19,14 @@ if [ -z "$LLM_PROVIDER_VALUE" ] && [ -f .env ]; then
   LLM_PROVIDER_VALUE=$(sed -n 's/^[[:space:]]*LLM_PROVIDER[[:space:]]*=[[:space:]]*//p' .env | tail -n 1)
 fi
 LLM_PROVIDER_VALUE=$(printf '%s' "$LLM_PROVIDER_VALUE" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
-LLM_PROVIDER_VALUE=${LLM_PROVIDER_VALUE:-ollama}
+LLM_PROVIDER_VALUE=${LLM_PROVIDER_VALUE:-gemini}
 
 # Stop a previously selected provider before starting the newly selected one.
 docker compose --profile ollama down --remove-orphans
 
 case "$LLM_PROVIDER_VALUE" in
   ollama)
-    docker compose --profile ollama up -d --build --wait postgres ollama
+    docker compose --profile ollama up -d --build --wait ollama
     docker compose --profile ollama run --rm ollama-model
     docker compose --profile ollama up -d --build --wait app
     echo "Simple RAG is using the local Ollama provider."
