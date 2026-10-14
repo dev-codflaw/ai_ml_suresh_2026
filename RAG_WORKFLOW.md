@@ -82,12 +82,12 @@ remote embedding endpoint is called.
   `psycopg`/`psycopg-binary`.
 - **Configuration:** `db.py` loads `.env` using `python-dotenv` and reads
   `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`.
-- **Table:** `document_chunks`.
+- **Table:** `vector_embeddings`.
 - **Vector column:** `embedding vector(384)`.
 - **Schema created by the code:**
 
   ```sql
-  CREATE TABLE IF NOT EXISTS document_chunks (
+  CREATE TABLE IF NOT EXISTS vector_embeddings (
       id SERIAL PRIMARY KEY,
       source TEXT NOT NULL,
       document_name TEXT NOT NULL,
@@ -103,7 +103,7 @@ remote embedding endpoint is called.
 - **Processing:** `save_chunk()` executes:
 
   ```sql
-  INSERT INTO document_chunks
+  INSERT INTO vector_embeddings
       (source, document_name, chunk_text, embedding)
   VALUES (%s, %s, %s, %s::vector)
   ```
@@ -159,7 +159,7 @@ do not exist.
   ```sql
   SELECT id, document_name, chunk_text,
          1 - (embedding <=> %s::vector) AS similarity
-  FROM document_chunks
+  FROM vector_embeddings
   WHERE embedding IS NOT NULL AND chunk_text IS NOT NULL
   ORDER BY embedding <=> %s::vector
   LIMIT %s
@@ -173,9 +173,8 @@ do not exist.
   `chunk_text`, and `similarity`.
 - **Ordering:** PostgreSQL orders by ascending cosine distance, and the Python
   list preserves that order.
-- **Next:** The list is displayed by `app.py` and then passed to
-  `generate_answer()` if the user clicks `Step 8: Generate answer with
-  Ollama`.
+- **Next:** The list is displayed by `app.py`. The user can click the nearby
+  `Ask LLM` button to pass the retrieved chunks to `generate_answer()`.
 
 ## 9. Retrieved chunks/context construction
 
@@ -237,7 +236,9 @@ do not exist.
   `Ollama request failed: ...`.
 - **Output:** On success, the code reads `response.json()["response"]` and
   returns `.strip()` as a plain string.
-- **Next:** `app.py` displays the string under `Step 9: Final answer`.
+- **Next:** `app.py` displays the string immediately below the `Ask LLM`
+  button under `Step 9: Final answer`; the response is not hidden in an
+  expander.
 
 ## 12. Structured output
 
@@ -287,7 +288,7 @@ Embedding
 [embeddings.py: get_embedding(); all-MiniLM-L6-v2, 384 dimensions]
 Vector Database
 ↓
-[PostgreSQL + pgvector; document_chunks.embedding vector(384)]
+[PostgreSQL + pgvector; vector_embeddings.embedding vector(384)]
 ```
 
 ```text

@@ -5,8 +5,8 @@ from pathlib import Path
 import fitz
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from embeddings import get_embedding
-from vector_store import create_table, save_chunk
+from embeddings import get_embeddings
+from vector_store import create_table, save_chunks
 
 
 def load_pdf(file_path: str | Path) -> fitz.Document:
@@ -38,18 +38,17 @@ def ingest_document(file_path: str | Path) -> dict:
         raise ValueError("The PDF does not contain readable text.")
 
     chunks = create_chunks(text)
+    if not chunks:
+        raise ValueError("The PDF did not produce any text chunks.")
+
+    embeddings = get_embeddings(chunks)
     create_table()
-
-    first_embedding = get_embedding(chunks[0])
-    save_chunk(document_name, chunks[0], first_embedding)
-
-    for chunk in chunks[1:]:
-        save_chunk(document_name, chunk, get_embedding(chunk))
+    save_chunks(document_name, chunks, embeddings)
 
     return {
         "document_name": document_name,
         "text": text,
         "chunks": chunks,
-        "embedding_dimension": len(first_embedding),
-        "example_embedding": first_embedding,
+        "embedding_dimension": len(embeddings[0]),
+        "example_embedding": embeddings[0],
     }

@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-docker compose down
+docker compose --profile ollama down --remove-orphans
 pause

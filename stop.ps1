@@ -1,4 +1,4 @@
 $ErrorActionPreference = "Stop"
 Set-Location -LiteralPath $PSScriptRoot
 
-docker compose down
+docker compose --profile ollama down --remove-orphans

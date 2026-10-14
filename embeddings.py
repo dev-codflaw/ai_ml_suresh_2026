@@ -16,5 +16,12 @@ def get_model() -> SentenceTransformer:
 
 def get_embedding(text: str) -> list[float]:
     """Convert text into a vector using the same model every time."""
-    vector = get_model().encode(text, convert_to_numpy=True)
-    return vector.tolist()
+    return get_embeddings([text])[0]
+
+
+def get_embeddings(texts: list[str]) -> list[list[float]]:
+    """Convert multiple texts in one model call."""
+    if not texts:
+        return []
+    vectors = get_model().encode(texts, convert_to_numpy=True)
+    return vectors.tolist()
