@@ -1,4 +1,4 @@
-"""Streamlit UI for the small, step-by-step RAG example."""
+"""Simple Streamlit UI for PDF search and question answering."""
 
 import tempfile
 from pathlib import Path
@@ -24,62 +24,58 @@ def save_uploaded_pdf(uploaded_file) -> Path:
     return Path(temporary_file.name)
 
 
-def show_ingestion_steps(result: dict) -> None:
-    """Show the intermediate values so the RAG steps are visible."""
-    st.subheader("Step 1: Extracted text")
-    st.text_area("PDF text", result["text"][:5000], height=180)
-
-    st.subheader("Step 2: Generated chunks")
-    st.write(f"Created {len(result['chunks'])} chunks.")
-    for number, chunk in enumerate(result["chunks"], start=1):
-        with st.expander(f"Chunk {number}"):
-            st.write(chunk)
-
-    st.subheader("Step 3: Embedding")
-    st.write(f"Embedding dimension: {result['embedding_dimension']}")
-    st.code(str(result["example_embedding"][:10]) + " ...")
+def show_ingestion_summary(result: dict) -> None:
+    """Show a compact summary after a document is ingested."""
+    st.success(f"Document ready — {len(result['chunks'])} chunks saved.")
+    with st.expander("Document details"):
+        st.write(f"**File:** {result['document_name']}")
+        st.write(f"**Embedding size:** {result['embedding_dimension']}")
+        st.text_area("Extracted text preview", result["text"][:3000], height=140)
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=5, show_spinner=False)
 def get_service_status() -> tuple[tuple[bool, str], tuple[bool, str]]:
-    """Check services once every 30 seconds while the UI is rerunning."""
+    """Check services frequently so status changes appear quickly."""
     return check_database_connection(), check_llm_connection()
 
 
 def show_service_status(llm_label: str, vector_store_label: str) -> None:
-    """Show clear service names and configuration/connection alerts."""
+    """Show compact connection status for the database and LLM."""
     (database_ok, database_message), (llm_ok, llm_message) = get_service_status()
-
-    database_status = st.success if database_ok else st.error
-    llm_status = st.success if llm_ok else st.error
 
     left, right = st.columns(2)
     with left:
-        st.markdown(f"**Database**  \n{vector_store_label}")
-        database_status(database_message)
+        st.caption(f"Database · {vector_store_label}")
+        if database_ok:
+            st.success("Connected", icon="✅")
+        else:
+            st.error(database_message, icon="❌")
     with right:
-        st.markdown(f"**LLM**  \n{llm_label}")
-        llm_status(llm_message)
+        st.caption(f"LLM · {llm_label}")
+        if llm_ok:
+            st.success("Connected", icon="✅")
+        else:
+            st.error(llm_message, icon="❌")
 
 
 def show_operation_error(operation: str, error: Exception) -> None:
-    """Show a friendly connection error and keep technical details available."""
-    st.error(
-        f"Application connection failed during {operation}. "
-        "Check the service status above and try again."
-    )
+    """Show one short error with optional technical details."""
+    st.error(f"{operation} failed. Check the connection status and try again.")
     with st.expander("Technical details"):
         st.code(str(error))
 
 
 def main() -> None:
-    st.set_page_config(page_title="Simple RAG", page_icon="📚")
-    st.title("Simple RAG Demo")
+    st.set_page_config(page_title="PDF Question Answering", page_icon="📚")
+    st.title("PDF Question Answering")
     llm_label = get_llm_label()
     vector_store_label = get_vector_store_label()
-    st.caption("PDF → chunks → embeddings → vector database")
+    st.caption("Add a PDF, search it, and ask a question.")
+
+    st.subheader("Connection status")
     show_service_status(llm_label, vector_store_label)
 
+    st.subheader("1. Add a document")
     uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
     existing_pdfs = sorted(DATASET_DIR.glob("*.pdf"))
     selected_pdf = st.selectbox(
@@ -88,7 +84,7 @@ def main() -> None:
         format_func=lambda path: "Choose a PDF" if path is None else path.name,
     )
 
-    if st.button("Ingest document"):
+    if st.button("Save document", type="primary"):
         source_path = None
         temporary_path = None
 
@@ -101,113 +97,122 @@ def main() -> None:
         if source_path is None:
             st.warning("Upload or select a PDF first.")
         else:
-            with st.status("Ingesting document...", expanded=True) as progress:
+            with st.status("Saving document...", expanded=True) as progress:
                 try:
-                    progress.write("Extracting text and creating chunks...")
+                    progress.write("Reading the PDF and creating chunks...")
                     result = ingest_document(source_path)
-                    progress.write("Embeddings created and saved to the vector database.")
+                    progress.write("Saving the chunks to the database...")
                     st.session_state["ingestion_result"] = result
                     st.session_state["retrieved_chunks"] = []
                     st.session_state["retrieved_question"] = ""
+                    st.session_state["retrieval_complete"] = False
                     st.session_state["generated_answer"] = None
                     st.session_state["answer_question"] = ""
                     progress.update(
-                        label=f"Ingestion complete — saved {len(result['chunks'])} chunks",
+                        label="Document saved",
                         state="complete",
                         expanded=False,
                     )
-                    st.success(
-                        f"Saved {len(result['chunks'])} chunks to {vector_store_label}."
-                    )
                 except Exception as error:
                     progress.update(
-                        label="Application connection failed during ingestion",
+                        label="Document save failed",
                         state="error",
                         expanded=True,
                     )
-                    show_operation_error("document ingestion", error)
+                    show_operation_error("Document save", error)
                 finally:
                     if temporary_path is not None:
                         temporary_path.unlink(missing_ok=True)
 
     result = st.session_state.get("ingestion_result")
     if result is not None:
-        show_ingestion_steps(result)
+        show_ingestion_summary(result)
 
     st.divider()
-    st.subheader("Ask a question")
-    question = st.text_input("Question")
+    st.subheader("2. Search the document")
+    question = st.text_input(
+        "Enter your question",
+        placeholder="For example: What is this document about?",
+    )
 
-    if st.button("Step 6: Retrieve similar chunks"):
+    if st.button("Search", type="primary"):
         if not question.strip():
             st.warning("Enter a question first.")
         else:
             st.session_state["retrieved_chunks"] = []
             st.session_state["retrieved_question"] = ""
+            st.session_state["retrieval_complete"] = False
             st.session_state["generated_answer"] = None
             st.session_state["answer_question"] = ""
-            with st.status("Retrieving similar chunks...", expanded=True) as progress:
+            with st.status("Searching...", expanded=True) as progress:
                 try:
-                    progress.write("Creating the question embedding...")
+                    progress.write("Preparing the question...")
                     question_embedding = get_embedding(question)
-                    progress.write("Searching the vector database...")
+                    progress.write("Searching the database...")
                     st.session_state["retrieved_chunks"] = similarity_search(
                         question_embedding,
                         top_k=5,
                     )
-                    st.session_state["retrieved_question"] = question
-                    result_count = len(st.session_state["retrieved_chunks"])
+                    st.session_state["retrieved_question"] = question.strip()
+                    st.session_state["retrieval_complete"] = True
                     progress.update(
-                        label=f"Retrieval complete — found {result_count} chunks",
+                        label="Search complete",
                         state="complete",
                         expanded=False,
                     )
-                    if not result_count:
-                        st.info("No matching chunks were found.")
                 except Exception as error:
                     progress.update(
-                        label="Application connection failed during retrieval",
+                        label="Search failed",
                         state="error",
                         expanded=True,
                     )
-                    show_operation_error("chunk retrieval", error)
+                    show_operation_error("Search", error)
 
     retrieved_chunks = st.session_state.get("retrieved_chunks", [])
     retrieved_question = st.session_state.get("retrieved_question", "")
-    if retrieved_chunks and retrieved_question == question:
-        st.subheader("Step 7: Retrieved chunks")
-        for number, chunk in enumerate(retrieved_chunks, start=1):
-            st.info(
-                f"Chunk {number} | similarity: {chunk['similarity']:.3f}\n\n"
-                f"{chunk['chunk_text']}"
-            )
+    retrieval_complete = st.session_state.get("retrieval_complete", False)
+    if retrieval_complete and retrieved_question == question.strip():
+        if retrieved_chunks:
+            st.success(f"Search complete — found {len(retrieved_chunks)} matching chunks.")
+        else:
+            st.warning("Search complete — no matching chunks were found.")
 
-        if st.button("Ask LLM", type="primary"):
-            st.session_state["generated_answer"] = None
-            st.session_state["answer_question"] = ""
-            with st.status(f"Generating answer with {llm_label}...", expanded=True) as progress:
-                try:
-                    progress.write(f"Sending the question and retrieved context to {llm_label}...")
-                    answer = generate_answer(question, retrieved_chunks)
-                    st.session_state["generated_answer"] = answer
-                    st.session_state["answer_question"] = question
-                    progress.update(
-                        label=f"Answer generated by {llm_label}",
-                        state="complete",
-                        expanded=False,
+        if retrieved_chunks:
+            st.subheader("Search results")
+            with st.expander(f"Show {len(retrieved_chunks)} matching chunks"):
+                for number, chunk in enumerate(retrieved_chunks, start=1):
+                    st.markdown(
+                        f"**Chunk {number} · similarity {chunk['similarity']:.3f}**"
                     )
-                except Exception as error:
-                    progress.update(
-                        label=f"Application connection failed while contacting {llm_label}",
-                        state="error",
-                        expanded=True,
-                    )
-                    show_operation_error(f"{llm_label} response generation", error)
+                    st.write(chunk["chunk_text"])
+
+            st.subheader("3. Ask the LLM")
+            if st.button("Ask LLM"):
+                st.session_state["generated_answer"] = None
+                st.session_state["answer_question"] = ""
+                with st.status("Generating answer...", expanded=True) as progress:
+                    try:
+                        progress.write(f"Sending the question to {llm_label}...")
+                        answer = generate_answer(question, retrieved_chunks)
+                        st.session_state["generated_answer"] = answer
+                        st.session_state["answer_question"] = question.strip()
+                        progress.update(
+                            label="Answer complete",
+                            state="complete",
+                            expanded=False,
+                        )
+                    except Exception as error:
+                        progress.update(
+                            label="Answer failed",
+                            state="error",
+                            expanded=True,
+                        )
+                        show_operation_error("LLM response", error)
 
         answer = st.session_state.get("generated_answer")
-        if answer is not None and st.session_state.get("answer_question") == question:
-            st.subheader("Step 9: Final answer")
-            st.caption(f"Response from: {llm_label}")
+        if answer is not None and st.session_state.get("answer_question") == question.strip():
+            st.success("Answer ready.")
+            st.subheader("Answer")
             st.write(answer)
 
 

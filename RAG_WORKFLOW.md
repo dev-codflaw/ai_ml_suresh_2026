@@ -56,23 +56,22 @@ capture, or table/image extraction path.
 
 ## 4. Embedding generation
 
-- **Python file/functions:** `embeddings.py` → `get_model()` and
+- **Python file/functions:** `embeddings.py` → `get_embeddings(texts)` and
   `get_embedding(text)`.
-- **Package/library:** `sentence_transformers.SentenceTransformer`.
-- **Model:** `all-MiniLM-L6-v2`, from the module constant `MODEL_NAME`.
+- **Package/library:** Python standard library (`hashlib`, `math`, and `re`).
+- **Vectorizer:** A stable hashing vectorizer with 384 dimensions.
 - **Input:** Each document chunk during ingestion and the user question during
   retrieval.
-- **Processing:** `get_model()` loads the model locally and caches one model
-  instance with `@lru_cache(maxsize=1)`. `get_embedding()` calls
-  `get_model().encode(text, convert_to_numpy=True)` and converts the NumPy
-  vector to a Python list with `.tolist()`.
+- **Processing:** Each word and short character n-gram is hashed into one of
+  384 positions. The resulting vector is L2-normalized, and the same
+  deterministic process is used for documents and questions.
 - **Output:** A list of floating-point values. The expected dimension is 384;
   the UI also reports `len(first_embedding)`.
 - **Next:** Document vectors go to `save_chunk()`; the question vector goes to
   `similarity_search()`.
 
-Embeddings are generated locally by SentenceTransformers. No embedding API or
-remote embedding endpoint is called.
+Vectors are generated locally by the Python standard library. No embedding
+package, model download, API, or remote embedding endpoint is used.
 
 ## 5. Vector database storage
 
@@ -139,11 +138,11 @@ do not exist.
 
 - **Python file/functions:** `app.py` → `main()` calls `embeddings.py` →
   `get_embedding(question)`.
-- **Package/model:** The same local `sentence-transformers` model,
-  `all-MiniLM-L6-v2`, used for document chunks.
+- **Package/model:** The same local 384-dimensional hashing vectorizer used
+  for document chunks.
 - **Input:** Non-empty text from `st.text_input("Question")`.
-- **Processing/output:** The same `SentenceTransformer.encode(...,
-  convert_to_numpy=True)` path produces a 384-dimensional Python list.
+- **Processing/output:** The same deterministic vectorizer produces a
+  384-dimensional Python list.
 - **Next:** The list is passed to
   `vector_store.similarity_search(question_embedding, top_k=5)`.
 
@@ -285,7 +284,7 @@ Chunking
 [ingestion.py: create_chunks(); RecursiveCharacterTextSplitter, chunk size 800, overlap 100]
 Embedding
 ↓
-[embeddings.py: get_embedding(); all-MiniLM-L6-v2, 384 dimensions]
+[embeddings.py: get_embedding(); local hashing vectorizer, 384 dimensions]
 Vector Database
 ↓
 [PostgreSQL + pgvector; vector_embeddings.embedding vector(384)]
@@ -299,7 +298,7 @@ User Question
 [app.py: main(); Streamlit st.text_input("Question")]
 Query Embedding
 ↓
-[embeddings.py: get_embedding(); same all-MiniLM-L6-v2 model]
+[embeddings.py: get_embedding(); same local hashing vectorizer]
 Similarity Search
 ↓
 [vector_store.py: similarity_search(); cosine distance (<=>), ORDER BY distance, LIMIT 5]

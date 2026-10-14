@@ -9,14 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install only lightweight runtime dependencies before copying application code
-# so this layer remains cached across source-only changes.
-RUN python -m pip install --no-cache-dir \
-    "streamlit>=1.40,<2" \
-    "PyMuPDF>=1.24,<2" \
-    "pymongo>=4.8,<5" \
-    "python-dotenv>=1.0,<2" \
-    "requests>=2.32,<3"
+# Install declared application dependencies before copying source code so this
+# layer remains cached across source-only changes.
+COPY requirements.txt .
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

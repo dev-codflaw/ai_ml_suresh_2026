@@ -11,7 +11,7 @@ PDF → text → chunks → embeddings → PostgreSQL/pgvector or MongoDB Atlas 
 ```text
 app.py            Streamlit UI
 ingestion.py      PDF loading, text extraction, chunking, ingestion
-embeddings.py     SentenceTransformer model and embeddings
+embeddings.py     Local deterministic vector generation
 vector_store.py   PostgreSQL/pgvector or MongoDB Atlas storage and search
 llm.py            Configured LLM answer generation
 db.py             PostgreSQL connection
@@ -39,7 +39,7 @@ datasets/         Example PDF files
 | `psycopg` / `psycopg-binary` | Connects Python to PostgreSQL |
 | `PyMuPDF` | Extracts text from PDF documents |
 | `langchain-text-splitters` | Splits extracted text into manageable chunks |
-| `sentence-transformers` | Creates 384-dimensional document and question embeddings using `all-MiniLM-L6-v2` |
+| Python standard library | Creates deterministic 384-dimensional document and question vectors without a model download |
 | `streamlit` | Builds the interactive application UI |
 | `requests` | Sends prompts to the Ollama HTTP API |
 | `python-dotenv` | Loads configuration values from `.env` |
@@ -66,8 +66,9 @@ Docker Desktop works on Windows, macOS, and Linux.
 The launcher reads `LLM_PROVIDER` from `.env`, builds the app image, starts
 PostgreSQL, and starts only the selected LLM provider. With Ollama it also
 downloads the configured model (`llama3.2:3b` by default). The first run can
-take several minutes because Docker images, the embedding model, and—when
-selected—the Ollama model must be downloaded.
+take several minutes because Docker images and—when selected—the Ollama model
+must be downloaded. Embeddings are generated locally without downloading a
+separate embedding model.
 
 Stop the stack with `stop.bat`, `stop.ps1`, or `./stop.sh`. Database records and
 downloaded Ollama models are kept in Docker volumes, so stopping the stack does
@@ -144,8 +145,8 @@ MONGODB_INDEX_NAME=vector_index
 ```
 
 For MongoDB Atlas, the app creates the `vectorSearch` index automatically on
-the first ingestion. The index uses the same 384-dimensional
-`all-MiniLM-L6-v2` embeddings as PostgreSQL. Atlas Vector Search requires a
+the first ingestion. The index uses the same 384-dimensional local vectors as
+PostgreSQL. Atlas Vector Search requires a
 supported Atlas cluster and permission to create search indexes. If the Atlas
 user cannot create indexes, create a Vector Search index named
 `vector_index` on `embedding` with 384 dimensions and cosine similarity, then
@@ -153,8 +154,10 @@ run the app again.
 
 The UI shows the active vector database and LLM. Ingestion extracts the PDF,
 creates chunks, batches the embeddings, and stores all chunks in one operation.
-Question retrieval uses the same embedding model and searches the selected
-vector database before sending the retrieved context to the LLM.
+Question retrieval uses the same local vectorizer and searches the selected
+vector database before sending the retrieved context to the LLM. Re-ingest
+documents after changing the vectorizer because vectors from different
+algorithms are not comparable.
 
 Create the pgvector extension once if your database user cannot create it:
 
