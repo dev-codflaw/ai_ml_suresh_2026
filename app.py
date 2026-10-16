@@ -66,7 +66,7 @@ def show_operation_error(operation: str, error: Exception) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="PDF Question Answering", page_icon="📚")
+    st.set_page_config(page_title="PDF Question Answering rag", page_icon="📚")
     st.title("PDF Question Answering")
     llm_label = get_llm_label()
     vector_store_label = get_vector_store_label()
