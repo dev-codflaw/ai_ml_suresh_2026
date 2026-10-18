@@ -1,7 +1,6 @@
 """The document-ingestion steps: PDF -> text -> chunks -> vectors."""
 
 from pathlib import Path
-from typing import TypeAlias
 
 import fitz
 
@@ -9,19 +8,14 @@ from embeddings import get_embeddings
 from vector_store import create_table, save_chunks
 
 
-PdfSource: TypeAlias = str | Path | bytes | bytearray | memoryview
+def load_pdf(file_path: str | Path) -> fitz.Document:
+    """Open a PDF file."""
+    return fitz.open(str(file_path))
 
 
-def load_pdf(source: PdfSource) -> fitz.Document:
-    """Open a PDF path or an in-memory PDF byte string."""
-    if isinstance(source, (bytes, bytearray, memoryview)):
-        return fitz.open(stream=bytes(source), filetype="pdf")
-    return fitz.open(str(source))
-
-
-def extract_text(source: PdfSource) -> str:
+def extract_text(file_path: str | Path) -> str:
     """Extract plain text from every page in a PDF."""
-    with load_pdf(source) as pdf:
+    with load_pdf(file_path) as pdf:
         return "\n".join(page.get_text("text") for page in pdf)
 
 
@@ -55,17 +49,10 @@ def create_chunks(text: str) -> list[str]:
     return chunks
 
 
-def ingest_document(source: PdfSource, document_name: str | None = None) -> dict:
-    """Extract, chunk, embed, and save one PDF from a path or bytes."""
-    if document_name is None:
-        if isinstance(source, (bytes, bytearray, memoryview)):
-            document_name = "document.pdf"
-        else:
-            document_name = Path(source).name
-    else:
-        document_name = Path(document_name).name
-
-    text = extract_text(source).strip()
+def ingest_document(file_path: str | Path) -> dict:
+    """Extract, chunk, embed, and save one PDF."""
+    document_name = Path(file_path).name
+    text = extract_text(file_path).strip()
 
     if not text:
         raise ValueError("The PDF does not contain readable text.")
