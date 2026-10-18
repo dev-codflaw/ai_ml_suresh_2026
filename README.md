@@ -66,10 +66,11 @@ volume. Embeddings are generated locally without downloading an embedding
 model.
 
 The GitHub Actions workflow at `.github/workflows/ci.yaml` builds the Docker
-image for pushes and pull requests. A push to the default branch or a manual
-workflow run also publishes the image to
-`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag` and deploys
-it to EC2 using AWS Systems Manager.
+image for pushes and pull requests. Every branch push and manual workflow run
+also publishes the image to
+`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag`. Pull requests
+build without publishing. A push to the default branch or a manual workflow run
+also deploys the published image to EC2 using AWS Systems Manager.
 
 Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `AWS_REGION`, and
