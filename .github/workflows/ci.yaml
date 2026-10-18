@@ -11,7 +11,7 @@ permissions:
 jobs:
   docker-build:
     name: Build Docker image
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [ubuntu-latest]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
