@@ -3,7 +3,7 @@
 The application implements this flow:
 
 ```text
-PDF → text → chunks → local vectors → MongoDB Atlas Vector Search → LLM answer
+S3 PDF → text → chunks → local vectors → MongoDB Atlas Vector Search → LLM answer
 ```
 
 MongoDB Atlas and Gemini are the lightweight defaults. Ollama remains an
@@ -11,8 +11,9 @@ optional local LLM provider.
 
 ## 1. Document ingestion
 
-`app.py` accepts an uploaded PDF or a PDF from `datasets/`. Uploaded files are
-written to a temporary path and removed after ingestion. `ingestion.py` then:
+`app.py` uploads PDFs to the configured S3 bucket and lists the PDFs under the
+configured prefix. The selected object is downloaded into memory and passed to
+`ingestion.py`, which then:
 
 1. Extracts text from every page with PyMuPDF.
 2. Splits the text into overlapping chunks of about 800 characters.

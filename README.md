@@ -3,13 +3,14 @@
 A small teaching project that shows every RAG step:
 
 ```text
-PDF → text → chunks → embeddings → MongoDB Atlas → LLM answer
+S3 PDF → text → chunks → embeddings → MongoDB Atlas → LLM answer
 ```
 
 ## Project structure
 
 ```text
 app.py            Streamlit UI
+s3_storage.py     S3 upload, listing, and in-memory PDF download
 ingestion.py      PDF loading, text extraction, chunking, ingestion
 embeddings.py     Local deterministic vector generation
 vector_store.py   MongoDB Atlas storage and vector search
@@ -17,7 +18,7 @@ llm.py            Configured LLM answer generation
 db.py             Database connection checks
 .env.example      Environment variable example
 requirements.txt  Python dependencies
-datasets/         Example PDF files
+.streamlit/       Streamlit upload-size configuration
 ```
 
 ## Tools
@@ -27,6 +28,7 @@ datasets/         Example PDF files
 | Python 3 | Runs the application and RAG pipeline |
 | Streamlit | Provides the web interface |
 | MongoDB Atlas | Stores chunks and runs Atlas Vector Search |
+| Amazon S3 | Stores uploaded PDFs (maximum 30 MB per file) |
 | Ollama or Google AI Studio | Generates answers through the selected LLM provider |
 | Git | Version control for the project |
 
@@ -40,6 +42,7 @@ datasets/         Example PDF files
 | `requests` | Sends prompts to the configured LLM HTTP API |
 | `python-dotenv` | Loads configuration values from `.env` |
 | `pymongo` | Connects to MongoDB Atlas and manages the vector index |
+| `boto3` | Uploads, lists, and downloads PDFs from Amazon S3 |
 
 The exact package versions are listed in [`requirements.txt`](requirements.txt).
 
@@ -53,7 +56,9 @@ local model is downloaded locally.
 
 1. Copy `.env.example` to `.env`.
 2. Set `GEMINI_API_KEY` in `.env`.
-3. Run from this folder:
+3. Configure the S3 bucket settings below and provide AWS credentials through
+   the standard boto3 credential chain.
+4. Run from this folder:
 
    ```bash
    docker compose up -d --build
@@ -73,6 +78,9 @@ MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/?retryWrites=true&w=ma
 MONGODB_DATABASE=ai_ml_vectordb
 MONGODB_COLLECTION=vector_embeddings
 MONGODB_INDEX_NAME=vector_index
+AWS_REGION=ap-south-1
+AWS_S3_BUCKET=your-pdf-bucket
+AWS_S3_PREFIX=documents
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.5-flash-lite
@@ -107,6 +115,56 @@ docker compose up -d --build --wait
 
 If one of these host ports is already in use, change the corresponding value
 and open the app using the new `APP_HOST_PORT`.
+
+## S3 document storage
+
+The UI uploads PDFs directly to `AWS_S3_BUCKET/AWS_S3_PREFIX`. It then lists
+the PDFs in that prefix; selecting one downloads it into memory for the
+existing extraction, chunking, embedding, and vector-database workflow. No
+temporary upload file or local `datasets/` selection is used by the app.
+
+Create the bucket before starting the app, then configure:
+
+```dotenv
+AWS_REGION=ap-south-1
+AWS_S3_BUCKET=your-pdf-bucket
+AWS_S3_PREFIX=documents
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
+```
+
+You may set `AWS_S3_BUCKET_URL` instead of `AWS_S3_BUCKET` when you have a
+full `s3://` or HTTPS bucket URL. The upload is verified with `head_object`,
+and the same prefix is used when listing PDFs for ingestion.
+
+For local development, boto3 can use `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` in the environment, an AWS profile, or an IAM role.
+For Docker or production, prefer an IAM role/task role instead of putting
+long-lived access keys in `.env`.
+
+The application needs these minimum permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::your-pdf-bucket",
+      "Condition": {"StringLike": {"s3:prefix": ["documents", "documents/*"]}}
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::your-pdf-bucket/documents/*"
+    }
+  ]
+}
+```
+
+The Streamlit server is configured with `maxUploadSize = 30`, and the
+application validates the size again before uploading and downloading.
 
 ## Manual Python setup
 
@@ -170,6 +228,23 @@ manual Ollama steps are not required.
 ```bash
 streamlit run app.py
 ```
+
+## CI/CD deployment to AWS EC2
+
+The workflow in `.github/workflows/docker-publish.yml` validates pull requests,
+publishes the Docker image on pushes to `main`, and deploys the existing Compose
+application to the EC2 instance. Configure these GitHub repository secrets:
+
+```text
+EC2_HOST       Public DNS name or IP address
+EC2_USER       EC2 login user, such as ubuntu
+EC2_SSH_KEY    Private SSH key for the instance
+EC2_APP_DIR    Existing project directory on the instance
+```
+
+Keep the production `.env` only on the EC2 instance. The deployment runs
+`git pull --ff-only`, then `docker compose up -d --build`; it does not replace
+the instance environment file or Docker volumes.
 
 ## Detailed workflow documentation
 
