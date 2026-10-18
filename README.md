@@ -70,7 +70,9 @@ image for pushes and pull requests. Every branch push and manual workflow run
 also publishes the image to
 `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag`. Pull requests
 build without publishing. Every branch push or manual workflow run also
-deploys the published image to EC2 using AWS Systems Manager.
+deploys the published image to EC2 using AWS Systems Manager. Each image tag
+includes the commit SHA, workflow run ID, and attempt number so it stays unique
+when retrying builds in an immutable ECR repository.
 
 Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `AWS_REGION`, and
