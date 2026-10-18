@@ -65,6 +65,10 @@ Stop the app with `docker compose down`. Database records remain in the Docker
 volume. Embeddings are generated locally without downloading an embedding
 model.
 
+The GitHub Actions workflow at `.github/workflows/ci.yaml` builds the Docker
+image for pushes and pull requests. It verifies the image build but does not
+publish the image.
+
 The Docker defaults can be changed in `.env`:
 
 ```dotenv
