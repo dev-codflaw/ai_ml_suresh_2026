@@ -70,19 +70,24 @@ image for pushes and pull requests. Every branch push and manual workflow run
 also publishes the image to
 `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag`. Pull requests
 build without publishing. Every branch push or manual workflow run also
-deploys the published image to EC2 using AWS Systems Manager. Each image tag
+deploys the published image to a normal EC2 instance over SSH. Each image tag
 includes the commit SHA, workflow run ID, and attempt number so it stays unique
 when retrying builds in an immutable ECR repository.
 
 Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `AWS_REGION`, and
-`EC2_INSTANCE_ID`. The AWS credentials need permissions to push to the ECR
-repository and send and inspect SSM commands. The EC2 instance must be a
-Systems Manager managed node with an instance role that can pull from this ECR
-repository, Docker and AWS CLI installed, and its application environment
-file at `/opt/sures-rag/.env`. The workflow replaces the running
-`suresh-rag-app` container and serves it on port 8501. Configure the EC2
-security group and network to allow intended clients to reach that port.
+`EC2_HOST`, `EC2_USER`, `EC2_SSH_PRIVATE_KEY`, and `EC2_SSH_KNOWN_HOSTS`.
+`EC2_HOST` is the instance's public DNS name or IP; `EC2_USER` is typically
+`ec2-user` for Amazon Linux. `EC2_SSH_PRIVATE_KEY` is the private SSH key, and
+`EC2_SSH_KNOWN_HOSTS` contains the host key line for that host, obtained and
+verified from a trusted source. The AWS credentials need permission to push to
+the ECR repository. The EC2 instance needs an instance role that can pull from
+this ECR repository, Docker and AWS CLI installed, and its application
+environment file at `/opt/sures-rag/.env`. The SSH user must be able to run
+Docker. The workflow replaces the running `suresh-rag-app` container and
+serves it on port 8501. Allow SSH in the EC2 security group only from a trusted
+runner/network; avoid opening port 22 to the entire internet. Also configure
+the security group and network to allow intended clients to reach port 8501.
 
 The Docker defaults can be changed in `.env`:
 
