@@ -46,7 +46,7 @@ jobs:
           tags: ${{ (github.event_name != 'pull_request' && format('{0}/{1}:{2}', env.ECR_REGISTRY, env.ECR_REPOSITORY, env.IMAGE_TAG)) || 'ai-ml-suresh:ci' }}
 
       - name: Deploy image to EC2 through SSM
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
