@@ -7,15 +7,14 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   docker-build:
     name: Build, publish, and deploy Docker image
     runs-on: [ubuntu-latest]
     env:
-      AWS_REGION: us-east-2
-      ECR_REGISTRY: 446241389506.dkr.ecr.us-east-2.amazonaws.com
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
       ECR_REPOSITORY: suresh/rag
       IMAGE_TAG: ${{ github.sha }}
       EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
@@ -30,7 +29,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -43,7 +43,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          tags: ${{ ((github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && format('{0}/{1}:{2}', env.ECR_REGISTRY, env.ECR_REPOSITORY, env.IMAGE_TAG)) || 'ai-ml-suresh:ci' }}
 
       - name: Deploy image to EC2 through SSM
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))

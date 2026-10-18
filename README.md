@@ -68,18 +68,18 @@ model.
 The GitHub Actions workflow at `.github/workflows/ci.yaml` builds the Docker
 image for pushes and pull requests. A push to the default branch or a manual
 workflow run also publishes the image to
-`446241389506.dkr.ecr.us-east-2.amazonaws.com/suresh/rag` and deploys it to
-EC2 using AWS Systems Manager.
+`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag` and deploys
+it to EC2 using AWS Systems Manager.
 
-To enable publishing and deployment, configure the `AWS_ROLE_ARN` and
-`EC2_INSTANCE_ID` GitHub Actions secrets. The AWS role must trust this
-repository's GitHub OIDC identity and allow ECR image push and SSM command
-execution. The EC2 instance must be a Systems Manager managed node with an
-instance role that can pull from this ECR repository, Docker and AWS CLI
-installed, and its application environment file at
-`/opt/sures-rag/.env`. The workflow replaces the running `suresh-rag-app`
-container and serves it on port 8501. Configure the EC2 security group and
-network to allow intended clients to reach that port.
+Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `AWS_REGION`, and
+`EC2_INSTANCE_ID`. The AWS credentials need permissions to push to the ECR
+repository and send and inspect SSM commands. The EC2 instance must be a
+Systems Manager managed node with an instance role that can pull from this ECR
+repository, Docker and AWS CLI installed, and its application environment
+file at `/opt/sures-rag/.env`. The workflow replaces the running
+`suresh-rag-app` container and serves it on port 8501. Configure the EC2
+security group and network to allow intended clients to reach that port.
 
 The Docker defaults can be changed in `.env`:
 
