@@ -65,6 +65,28 @@ Stop the app with `docker compose down`. Database records remain in the Docker
 volume. Embeddings are generated locally without downloading an embedding
 model.
 
+The GitHub Actions workflow at `.github/workflows/ci.yaml` builds the Docker
+image for pushes and pull requests. Every branch push and manual workflow run
+also publishes the image to
+`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/suresh/rag`. Pull requests
+build without publishing. Every branch push or manual workflow run also
+deploys the published image to EC2 through AWS Systems Manager Run Command.
+Each image tag
+includes the commit SHA, workflow run ID, and attempt number so it stays unique
+when retrying builds in an immutable ECR repository.
+
+Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `AWS_REGION`, and
+`EC2_INSTANCE_ID`. The AWS credentials need permission to push to the ECR
+repository and to send and inspect SSM commands. The EC2 instance must have
+the `AmazonSSMManagedInstanceCore` instance role policy, a running SSM Agent,
+and outbound HTTPS access to Systems Manager endpoints. It must also have an
+instance role that can pull from this ECR repository, Docker and AWS CLI
+installed, and its application environment file at `/opt/sures-rag/.env`.
+The workflow replaces the running `suresh-rag-app` container and serves it on
+port 8501. Configure the EC2 security group and network to allow intended
+clients to reach that port. No inbound SSH access or SSH keys are needed.
+
 The Docker defaults can be changed in `.env`:
 
 ```dotenv
