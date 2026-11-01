@@ -67,7 +67,7 @@ def show_operation_error(operation: str, error: Exception) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Suresh RAG PDF Question Answering version1", page_icon="📚")
-    st.title("RAG PDF Question Answering")
+    st.title("Suresh RAG PDF Question Answering:version2")
     llm_label = get_llm_label()
     vector_store_label = get_vector_store_label()
     st.caption("Add a PDF, search it, and ask a question.")
