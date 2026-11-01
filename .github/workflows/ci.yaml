@@ -9,7 +9,32 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install lint tool
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run linting
+        run: python -m ruff check .
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
   docker-build:
+    needs: [lint, tests]
     name: Build, publish, and deploy Docker image
     runs-on: [ubuntu-latest]
     env:

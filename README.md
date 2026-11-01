@@ -198,3 +198,18 @@ streamlit run app.py
 The exact code-level RAG trace, SQL, prompt template, implemented limitations,
 and separate recommendations are documented in
 [`RAG_WORKFLOW.md`](RAG_WORKFLOW.md).
+
+## Basic CI checks
+
+GitHub Actions shows separate **Lint** and **Tests** jobs on pushes (including
+`main`) and pull requests. Both must pass before the Docker job starts.
+The three offline unit tests cover embedding dimensions and normalization,
+batch consistency, and empty inputs; no API keys or database are needed.
+
+Run the same checks locally:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m ruff check .
+python -m unittest discover -s tests -v
+```
