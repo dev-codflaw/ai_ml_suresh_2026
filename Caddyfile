@@ -1,0 +1,3 @@
+sureshrag.duckdns.org {
+    reverse_proxy suresh-rag-app:8501
+}
