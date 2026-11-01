@@ -84,14 +84,12 @@ and outbound HTTPS access to Systems Manager endpoints. It must also have an
 instance role that can pull from this ECR repository, Docker and AWS CLI
 installed, and its application environment file at `/opt/sures-rag/.env`.
 The workflow deploys the app behind Caddy, which obtains and renews the HTTPS
-certificate for `sureshrag.duckdns.org`. On EC2, the workflow leaves the
-existing Nginx listener on port 80 in place and configures it to forward this
-domain to Caddy; Caddy serves HTTPS on port 443. Point that DuckDNS name at
-the EC2 instance's public IP, and allow inbound TCP ports 80 and 443 in its
-security group and network (UDP 443 is optional for HTTP/3). Do not expose
-port 8501 publicly. Open `https://sureshrag.duckdns.org` after deployment.
-Certificate issuance requires the DNS name to resolve to this server and
-ports 80/443 to reach it. No inbound SSH access or SSH keys are needed.
+certificate for `sureshrag.duckdns.org`. Point that DuckDNS name at the EC2
+instance's public IP, and allow inbound TCP ports 80 and 443 in its security
+group and network (UDP 443 is optional for HTTP/3). Do not expose port 8501
+publicly. Open `https://sureshrag.duckdns.org` after deployment. Certificate
+issuance requires the DNS name to resolve to this server and ports 80/443 to
+reach it. No inbound SSH access or SSH keys are needed.
 
 The Docker defaults can be changed in `.env`:
 
