@@ -127,6 +127,7 @@ jobs:
           image="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           commands=$(printf '%s\n' \
             'set -euo pipefail' \
+            "export ECR_REGISTRY='${ECR_REGISTRY}' ECR_REPOSITORY='${ECR_REPOSITORY}'" \
             "aws ecr get-login-password --region '${AWS_REGION}' | docker login --username AWS --password-stdin '${ECR_REGISTRY}'" \
             "docker pull '${image}'" \
             'test -f /opt/sures-rag/.env' \
