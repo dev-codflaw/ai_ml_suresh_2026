@@ -131,7 +131,11 @@ jobs:
             "docker pull '${image}'" \
             'test -f /opt/sures-rag/.env' \
             'docker rm -f suresh-rag-app >/dev/null 2>&1 || true' \
-            "docker run -d --name suresh-rag-app --restart unless-stopped --env-file /opt/sures-rag/.env -p 8501:8501 '${image}'")
+            "docker run -d --name suresh-rag-app --restart unless-stopped --env-file /opt/sures-rag/.env -p 8501:8501 '${image}'" \
+            'for attempt in $(seq 1 60); do status=$(docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" suresh-rag-app); if [ "$status" = healthy ]; then echo "New app image is healthy."; break; fi; if [ "$status" = unhealthy ]; then docker logs suresh-rag-app; exit 1; fi; sleep 5; done' \
+            'status=$(docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" suresh-rag-app)' \
+            '[ "$status" = healthy ] || { docker logs suresh-rag-app; echo "App did not become healthy (status: $status)." >&2; exit 1; }' \
+            "docker image ls --format '{{.ID}}' '${ECR_REGISTRY}/${ECR_REPOSITORY}' | awk '!seen[\\$1]++ { count++; if (count > 2) print \\$1 } | while read -r image_id; do [ -n \"\\$image_id\" ] || continue; if [ -n \"\\$(docker ps -aq --filter ancestor=\\$image_id)\" ]; then echo \"Keeping older image in use by a container: \\$image_id\"; else docker image rm \"\\$image_id\"; fi; done")
           parameters=$(jq -n --arg commands "$commands" '{commands: [$commands]}')
           command_id=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \

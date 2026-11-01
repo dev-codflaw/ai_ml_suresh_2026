@@ -83,6 +83,10 @@ the `AmazonSSMManagedInstanceCore` instance role policy, a running SSM Agent,
 and outbound HTTPS access to Systems Manager endpoints. It must also have an
 instance role that can pull from this ECR repository, Docker and AWS CLI
 installed, and its application environment file at `/opt/sures-rag/.env`.
+The image includes a Streamlit health check. Deployment waits for the new
+container to become healthy, then keeps the two newest distinct app image IDs
+on the EC2 instance and removes older unused app images. Older images still
+used by another container are retained.
 The workflow replaces the running `suresh-rag-app` container and serves it on
 port 8501. Configure the EC2 security group and network to allow intended
 clients to reach that port. No inbound SSH access or SSH keys are needed.
