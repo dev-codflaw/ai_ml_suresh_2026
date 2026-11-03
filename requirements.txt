@@ -3,3 +3,4 @@ streamlit
 requests
 python-dotenv==1.0.1
 pymongo==4.11.1
+boto3>=1.35,<2

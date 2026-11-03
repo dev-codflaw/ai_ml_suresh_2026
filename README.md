@@ -213,3 +213,38 @@ python -m pip install -r requirements-dev.txt
 python -m ruff check .
 python -m unittest discover -s tests -v
 ```
+
+## S3 uploads and manual ingestion
+
+1. Create a private S3 bucket and set `AWS_S3_BUCKET` (bucket name only), `AWS_S3_PREFIX` (default `pdfs`
+   when omitted; blank means the bucket root), and `AWS_REGION` in the application `.env` (on EC2: `/opt/sures-rag/.env`).
+2. Give the EC2 instance role `s3:ListBucket` on the bucket and
+   `s3:GetObject` / `s3:PutObject` on the configured prefix. Keep the bucket private.
+   If using a customer-managed KMS key, grant the matching KMS permissions too.
+   The app uses the standard AWS credential chain; on EC2 use its instance role.
+   Locally use your AWS credentials; Docker Compose can receive standard AWS
+   credential variables through `.env`. Never commit credential values.
+3. Install updated dependencies (`pip install -r requirements.txt`) or rebuild Docker.
+4. Click **Upload to S3**. This stores the PDF only; it does not write database chunks.
+5. The right-hand panel lists all PDFs under the configured prefix. Click
+   **Refresh files** to see uploads from other sessions. Select one and use
+   **Open selected PDF** to view it through a private, five-minute signed link.
+6. Click **Ingest selected PDF** to download, extract, embed, and save to the
+   database. Temporary downloads are removed after ingestion, including on failure.
+
+Every upload gets a unique S3 key, preserving PDFs with the same filename.
+That key is also stored as the database source to distinguish same-named uploads.
+Ingestion keeps the existing append behavior: ingesting a PDF again adds chunks again.
+The file list shows S3 storage, not ingestion status. Search still queries all
+ingested documents. Existing local dataset selection is replaced by S3 selection.
+
+### S3 environment variable names
+
+The app reads runtime settings from `.env`, not `.env.example`. Copy your
+settings into the local `.env` or EC2 `/opt/sures-rag/.env` before starting.
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are supported by Boto3's normal
+credential chain; temporary credentials also need `AWS_SESSION_TOKEN`.
+On EC2, leave credential fields unset to use the instance role.
+`AWS_S3_BUCKET_URL` is optional and unused: the app addresses the bucket by
+`AWS_S3_BUCKET` and creates private signed links itself.
+Legacy `S3_BUCKET`, `S3_PREFIX`, and `AWS_DEFAULT_REGION` remain supported.

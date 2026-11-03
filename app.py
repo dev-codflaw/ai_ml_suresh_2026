@@ -8,20 +8,9 @@ import streamlit as st
 from db import check_database_connection
 from embeddings import get_embedding
 from ingestion import ingest_document
+from s3_storage import download_pdf, list_pdfs, pdf_url, upload_pdf
 from llm import check_llm_connection, generate_answer, get_llm_label
 from vector_store import get_vector_store_label, similarity_search
-
-
-BASE_DIR = Path(__file__).parent
-DATASET_DIR = BASE_DIR / "datasets"
-
-
-def save_uploaded_pdf(uploaded_file) -> Path:
-    """Save a Streamlit upload to a temporary PDF file."""
-    temporary_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    temporary_file.write(uploaded_file.getbuffer())
-    temporary_file.close()
-    return Path(temporary_file.name)
 
 
 def show_ingestion_summary(result: dict) -> None:
@@ -70,59 +59,79 @@ def main() -> None:
     st.title("RAG PDF Question Answering")
     llm_label = get_llm_label()
     vector_store_label = get_vector_store_label()
-    st.caption("Add a PDF, search it, and ask a question.")
+    st.caption("Upload PDFs to S3, ingest a selected file, then search and ask questions.")
 
     st.subheader("Connection status")
     show_service_status(llm_label, vector_store_label)
 
-    st.subheader("1. Add a document")
-    uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
-    existing_pdfs = sorted(DATASET_DIR.glob("*.pdf"))
-    selected_pdf = st.selectbox(
-        "Or select an existing PDF",
-        [None] + existing_pdfs,
-        format_func=lambda path: "Choose a PDF" if path is None else path.name,
-    )
-
-    if st.button("Save document", type="primary"):
-        source_path = None
-        temporary_path = None
-
-        if uploaded_file is not None:
-            temporary_path = save_uploaded_pdf(uploaded_file)
-            source_path = temporary_path
-        elif selected_pdf is not None:
-            source_path = selected_pdf
-
-        if source_path is None:
-            st.warning("Upload or select a PDF first.")
-        else:
-            with st.status("Saving document...", expanded=True) as progress:
+    st.subheader("1. Upload and ingest documents")
+    upload_column, files_column = st.columns(2)
+    with upload_column:
+        st.markdown("#### Upload to S3")
+        uploaded_file = st.file_uploader("Choose a PDF", type=["pdf"])
+        if st.button("Upload to S3", type="primary"):
+            if uploaded_file is None:
+                st.warning("Choose a PDF first.")
+            else:
                 try:
-                    progress.write("Reading the PDF and creating chunks...")
-                    result = ingest_document(source_path)
-                    progress.write("Saving the chunks to the database...")
-                    st.session_state["ingestion_result"] = result
-                    st.session_state["retrieved_chunks"] = []
-                    st.session_state["retrieved_question"] = ""
-                    st.session_state["retrieval_complete"] = False
-                    st.session_state["generated_answer"] = None
-                    st.session_state["answer_question"] = ""
-                    progress.update(
-                        label="Document saved",
-                        state="complete",
-                        expanded=False,
-                    )
+                    with st.spinner("Uploading to S3..."):
+                        upload_pdf(uploaded_file.name, uploaded_file.getvalue())
+                    st.success("Uploaded to S3. Select it on the right to start ingestion.")
                 except Exception as error:
-                    progress.update(
-                        label="Document save failed",
-                        state="error",
-                        expanded=True,
-                    )
-                    show_operation_error("Document save", error)
-                finally:
-                    if temporary_path is not None:
-                        temporary_path.unlink(missing_ok=True)
+                    show_operation_error("S3 upload", error)
+        st.caption("Uploading stores the PDF in S3 only. Ingestion starts when you click the button on the right.")
+
+    with files_column:
+        st.markdown("#### PDFs in S3")
+        st.button("Refresh files")
+        try:
+            files = list_pdfs()
+        except Exception as error:
+            files = []
+            show_operation_error("S3 file listing", error)
+
+        if files:
+            st.dataframe(
+                [{"File": Path(item["Key"]).name,
+                  "Uploaded": item["LastModified"],
+                  "Size (KB)": round(item["Size"] / 1024, 1)} for item in files],
+                hide_index=True,
+            )
+            by_key = {item["Key"]: item for item in files}
+            selected_key = st.selectbox(
+                "Choose a PDF to ingest",
+                list(by_key),
+                format_func=lambda key: (
+                    f"{Path(key).name} · {by_key[key]['LastModified'].isoformat()} · {key}"
+                ),
+            )
+            try:
+                st.link_button("Open selected PDF", pdf_url(selected_key))
+            except Exception as error:
+                show_operation_error("PDF link", error)
+
+            if st.button("Ingest selected PDF", type="primary"):
+                with st.status("Ingesting selected PDF...", expanded=True) as progress:
+                    try:
+                        with tempfile.TemporaryDirectory() as directory:
+                            source_path = Path(directory) / Path(selected_key).name
+                            progress.write("Downloading the selected PDF from S3...")
+                            download_pdf(selected_key, source_path)
+                            progress.write("Extracting text, creating embeddings, and saving chunks...")
+                            result = ingest_document(source_path, document_name=selected_key)
+                        st.session_state["ingestion_result"] = result
+                        st.session_state["retrieved_chunks"] = []
+                        st.session_state["retrieved_question"] = ""
+                        st.session_state["retrieval_complete"] = False
+                        st.session_state["generated_answer"] = None
+                        st.session_state["answer_question"] = ""
+                        progress.update(label="Ingestion complete", state="complete", expanded=False)
+                    except Exception as error:
+                        progress.update(label="Ingestion failed", state="error", expanded=True)
+                        show_operation_error("Document ingestion", error)
+        else:
+            st.info("No PDFs to show. Upload a PDF to S3 first.")
+
 
     result = st.session_state.get("ingestion_result")
     if result is not None:

@@ -49,9 +49,9 @@ def create_chunks(text: str) -> list[str]:
     return chunks
 
 
-def ingest_document(file_path: str | Path) -> dict:
+def ingest_document(file_path: str | Path, document_name: str | None = None) -> dict:
     """Extract, chunk, embed, and save one PDF."""
-    document_name = Path(file_path).name
+    document_name = document_name or Path(file_path).name
     text = extract_text(file_path).strip()
 
     if not text:
